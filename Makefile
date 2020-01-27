@@ -5,6 +5,7 @@ HANDINDIR =
 
 CC = 		gcc
 CFLAGS = 	-Wall -O2 -m32 -ggdb3
+CFLAGS+= 	-ggdb3
 LIBS = 		-lm
 
 OBJS = driver.o kernels.o fcyc.o clock.o
