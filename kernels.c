@@ -160,39 +160,122 @@ void naive_smooth(int dim, pixel *src, pixel *dst)
             dst[RIDX(i, j, dim)] = avg(dim, i, j, src);
 }
 
-/*
- * better_avg - Returns averaged pixel value at (i,j)
- */
-static pixel better_avg(int dim, int i, int j, pixel *src)
+char smooth5_descr[] = "smooth5: Optimized version by Ido";
+void smooth5(int dim, pixel *src, pixel *dst)
 {
-    int ii, jj;
-    pixel_sum sum = {0};
-    pixel current_pixel;
-    for (ii = i - 1; ii <= i + 1; ii++)
-    {
-        if (((ii) < 0) || ((ii) >= dim))
-            continue;
-        for (jj = j - 1; jj <= j + 1; jj++)
-        {
-            if (((jj) < 0) || ((jj) >= dim))
-                continue;
-            accumulate_sum(&sum, src[RIDX(ii, jj, dim)]);
-        }
-    }
-    assign_sum_to_pixel(&current_pixel, sum);
-    return current_pixel;
-}
+    int rid; // RDIX-format location in the matrix.
+    pixel_sum sum;
 
-/*
- * smooth1 - best scored yet, disabled double summation when going out-of-bounds.
- */
-char smooth1_descr[] = "smooth: Current working version";
-void smooth1(int dim, pixel *src, pixel *dst)
-{
-    int i, j, ii, jj;
-    for (i = 0; i < dim; i++)
-        for (j = 0; j < dim; j++)
-            dst[RIDX(i, j, dim)] = better_avg(dim, i, j, src);
+    //Four corners   ---------------------------------
+    //(0 , 0)
+    // rd = 0;
+    initialize_pixel_sum(&sum);
+    accumulate_sum(&sum, src[0]);       //(0 , 0)
+    accumulate_sum(&sum, src[1]);       //(0 , 1)
+    accumulate_sum(&sum, src[dim]);     //(1 , 0)
+    accumulate_sum(&sum, src[dim + 1]); //(1 , 1)
+    assign_sum_to_pixel(dst, sum);
+
+    //(0 , dim - 1)
+    // rd = RIDX(0, dim - 1, dim);
+    rid = dim - 1;
+    initialize_pixel_sum(&sum);
+    accumulate_sum(&sum, src[rid]);           //(0 , dim - 1)
+    accumulate_sum(&sum, src[rid - 1]);       //(0 , dim - 2)
+    accumulate_sum(&sum, src[rid + dim]);     //(1 , dim - 1)
+    accumulate_sum(&sum, src[rid + dim - 1]); //(1 , dim - 2)
+    assign_sum_to_pixel(dst + rid, sum);
+
+    // (dim - 1 , 0)
+    // rd = RIDX(dim - 1, 0, dim);
+    rid = (dim - 1) * dim;
+    initialize_pixel_sum(&sum);
+    accumulate_sum(&sum, src[rid]);           //(dim - 1 , 0)
+    accumulate_sum(&sum, src[rid + 1]);       //(dim - 1 , 1)
+    accumulate_sum(&sum, src[rid - dim]);     //(dim - 2 , 0)
+    accumulate_sum(&sum, src[rid - dim + 1]); //(dim - 2 , 1)
+    assign_sum_to_pixel(dst + rid, sum);
+
+    //(dim - 1 , dim - 1)
+    // rd = RDIX(dim - 1, dim - 1, dim);
+    rid = dim * dim - 1;
+    initialize_pixel_sum(&sum);
+    accumulate_sum(&sum, src[rid]);           //(dim - 1 , dim - 1)
+    accumulate_sum(&sum, src[rid - 1]);       //(dim - 1 , dim - 2)
+    accumulate_sum(&sum, src[rid - dim]);     //(dim - 2 , dim - 1)
+    accumulate_sum(&sum, src[rid - dim - 1]); //(dim - 2 , dim - 2)
+    assign_sum_to_pixel(dst + rid, sum);
+
+    //(0 , 1) ... (0, dim-2) [Left Column]
+    for (rid = 1; rid < dim - 1; rid++)
+    {
+        initialize_pixel_sum(&sum);
+        accumulate_sum(&sum, src[rid - 1]);       // (x , y - 1)
+        accumulate_sum(&sum, src[rid]);           // (x , y)
+        accumulate_sum(&sum, src[rid + 1]);       // (x , y + 1)
+        accumulate_sum(&sum, src[rid + dim - 1]); // (x + 1 , y - 1)
+        accumulate_sum(&sum, src[rid + dim]);     // (x + 1 , y)
+        accumulate_sum(&sum, src[rid + dim + 1]); // (x + 1 , y + 1)
+        assign_sum_to_pixel(dst + rid, sum);
+    }
+
+    //(dim - 1 , 1) ... (dim - 1, dim-2) [Right Column]
+    for (rid = RIDX(dim - 1, 1, dim); rid < (dim * dim) - 1; rid++)
+    {
+        initialize_pixel_sum(&sum);
+        accumulate_sum(&sum, src[rid - 1]);       // (x , y - 1)
+        accumulate_sum(&sum, src[rid]);           // (x , y)
+        accumulate_sum(&sum, src[rid + 1]);       // (x , y + 1)
+        accumulate_sum(&sum, src[rid - dim - 1]); // (x - 1 , y - 1)
+        accumulate_sum(&sum, src[rid - dim]);     // (x - 1 , y)
+        accumulate_sum(&sum, src[rid - dim + 1]); // (x - 1 , y + 1)
+        assign_sum_to_pixel(dst + rid, sum);
+    }
+
+    //(1 , 0) ... (dim - 2, 0) [Upper Row]
+    for (rid = dim; rid < (dim - 1) * dim; rid += dim)
+    {
+        initialize_pixel_sum(&sum);
+        accumulate_sum(&sum, src[rid + dim]);     // (x + 1 , y)
+        accumulate_sum(&sum, src[rid]);           // (x , y)
+        accumulate_sum(&sum, src[rid - dim]);     // (x - 1 , y)
+        accumulate_sum(&sum, src[rid + dim + 1]); // (x + 1 , y + 1)
+        accumulate_sum(&sum, src[rid + 1]);       // (x , y + 1)
+        accumulate_sum(&sum, src[rid - dim + 1]); // (x - 1 , y + 1)
+        assign_sum_to_pixel(dst + rid, sum);
+    }
+
+    //(1 , dim - 1) ... (dim - 2, dim - 1) [Lower Row]
+    for (rid = RIDX(1, dim - 1, dim); rid < (dim * dim) - 1; rid += dim)
+    {
+        initialize_pixel_sum(&sum);
+        accumulate_sum(&sum, src[rid + dim]);     // (x + 1 , y)
+        accumulate_sum(&sum, src[rid]);           // (x , y)
+        accumulate_sum(&sum, src[rid - dim]);     // (x - 1 , y)
+        accumulate_sum(&sum, src[rid + dim - 1]); // (x + 1 , y - 1)
+        accumulate_sum(&sum, src[rid - 1]);       // (x , y - 1)
+        accumulate_sum(&sum, src[rid - dim - 1]); // (x - 1 , y - 1)
+        assign_sum_to_pixel(dst + rid, sum);
+    }
+
+    //Center   ------------------------------------------------------------------
+    int i, j;
+    for (i = 1; i < dim - 1; i++)
+        for (j = 1; j < dim - 1; j++)
+        {
+            rid = RIDX(i, j, dim);
+            initialize_pixel_sum(&sum);
+            accumulate_sum(&sum, src[rid + dim]);     // (x + 1 , y)        right neighbour
+            accumulate_sum(&sum, src[rid]);           // (x , y)            current pixel
+            accumulate_sum(&sum, src[rid - dim]);     // (x - 1 , y)        left neighbour
+            accumulate_sum(&sum, src[rid + dim - 1]); // (x + 1 , y - 1)    upper-right neighbour
+            accumulate_sum(&sum, src[rid - 1]);       // (x , y - 1)        upper neighbour
+            accumulate_sum(&sum, src[rid - dim - 1]); // (x - 1 , y - 1)    upper-left neighbour
+            accumulate_sum(&sum, src[rid + dim + 1]); // (x + 1 , y + 1)    lower-right neighbour
+            accumulate_sum(&sum, src[rid + 1]);       // (x , y + 1)        lower neighbour
+            accumulate_sum(&sum, src[rid - dim + 1]); // (x - 1 , y + 1)    lower-left neighbour
+            assign_sum_to_pixel(dst + rid, sum);
+        }
 }
 
 /*
@@ -202,7 +285,7 @@ void smooth1(int dim, pixel *src, pixel *dst)
 char smooth_descr[] = "smooth: Current working version";
 void smooth(int dim, pixel *src, pixel *dst)
 {
-    smooth1(dim, src, dst);
+    smooth5(dim, src, dst);
 }
 
 /*********************************************************************
