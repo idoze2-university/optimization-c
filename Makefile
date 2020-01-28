@@ -4,7 +4,7 @@ VERSION = 	1
 HANDINDIR =
 
 CC = 		gcc
-CFLAGS = 	-Wall -O2 -m32 -ggdb3
+CFLAGS = 	-Wall -O2 -m32
 CFLAGS+= 	-ggdb3
 LIBS = 		-lm
 
