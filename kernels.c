@@ -47,7 +47,7 @@ void naive_rotate(int dim, pixel *src, pixel *dst)
 char rotate_descr[] = "rotate: Current working version";
 void rotate(int dim, pixel *src, pixel *dst)
 {
-    naive_rotate(dim, src, dst);
+    // naive_rotate(dim, src, dst);
 }
 
 /*********************************************************************
@@ -157,13 +157,41 @@ void naive_smooth(int dim, pixel *src, pixel *dst)
 }
 
 /*
+ * smooth1 - best scored yet, disabled double summation when going out-of-bounds.
+ */
+char smooth1_descr[] = "smooth: Current working version";
+void smooth1(int dim, pixel *src, pixel *dst)
+{
+    int i, j, ii, jj;
+    for (i = 0; i < dim; i++)
+        for (j = 0; j < dim; j++)
+        {
+            pixel_sum sum = {0};
+            pixel current_pixel;
+            for (ii = i - 1; ii <= i + 1; ii++)
+            {
+                if (((ii) < 0) || ((ii) >= dim))
+                    continue;
+                for (jj = j - 1; jj <= j + 1; jj++)
+                {
+                    if (((jj) < 0) || ((jj) >= dim))
+                        continue;
+                    accumulate_sum(&sum, src[RIDX(ii, jj, dim)]);
+                }
+            }
+            assign_sum_to_pixel(&current_pixel, sum);
+            dst[RIDX(i, j, dim)] = current_pixel;
+        }
+}
+
+/*
  * smooth - Your current working version of smooth.
  * IMPORTANT: This is the version you will be graded on
  */
 char smooth_descr[] = "smooth: Current working version";
 void smooth(int dim, pixel *src, pixel *dst)
 {
-    naive_smooth(dim, src, dst);
+    smooth1(dim, src, dst);
 }
 
 /*********************************************************************
