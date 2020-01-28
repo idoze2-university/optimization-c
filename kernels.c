@@ -47,7 +47,11 @@ void naive_rotate(int dim, pixel *src, pixel *dst)
 char rotate_descr[] = "rotate: Current working version";
 void rotate(int dim, pixel *src, pixel *dst)
 {
-    // naive_rotate(dim, src, dst);
+    int i, j;
+
+    for (j = 0; j < dim; j++)
+        for (i = 0; i < dim; i++)
+            dst[RIDX(dim - 1 - j, i, dim)] = src[RIDX(i, j, dim)];
 }
 
 /*********************************************************************
@@ -157,6 +161,29 @@ void naive_smooth(int dim, pixel *src, pixel *dst)
 }
 
 /*
+ * better_avg - Returns averaged pixel value at (i,j)
+ */
+static pixel better_avg(int dim, int i, int j, pixel *src)
+{
+    int ii, jj;
+    pixel_sum sum = {0};
+    pixel current_pixel;
+    for (ii = i - 1; ii <= i + 1; ii++)
+    {
+        if (((ii) < 0) || ((ii) >= dim))
+            continue;
+        for (jj = j - 1; jj <= j + 1; jj++)
+        {
+            if (((jj) < 0) || ((jj) >= dim))
+                continue;
+            accumulate_sum(&sum, src[RIDX(ii, jj, dim)]);
+        }
+    }
+    assign_sum_to_pixel(&current_pixel, sum);
+    return current_pixel;
+}
+
+/*
  * smooth1 - best scored yet, disabled double summation when going out-of-bounds.
  */
 char smooth1_descr[] = "smooth: Current working version";
@@ -165,23 +192,7 @@ void smooth1(int dim, pixel *src, pixel *dst)
     int i, j, ii, jj;
     for (i = 0; i < dim; i++)
         for (j = 0; j < dim; j++)
-        {
-            pixel_sum sum = {0};
-            pixel current_pixel;
-            for (ii = i - 1; ii <= i + 1; ii++)
-            {
-                if (((ii) < 0) || ((ii) >= dim))
-                    continue;
-                for (jj = j - 1; jj <= j + 1; jj++)
-                {
-                    if (((jj) < 0) || ((jj) >= dim))
-                        continue;
-                    accumulate_sum(&sum, src[RIDX(ii, jj, dim)]);
-                }
-            }
-            assign_sum_to_pixel(&current_pixel, sum);
-            dst[RIDX(i, j, dim)] = current_pixel;
-        }
+            dst[RIDX(i, j, dim)] = better_avg(dim, i, j, src);
 }
 
 /*
